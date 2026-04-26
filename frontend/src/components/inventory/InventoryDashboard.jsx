@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -15,7 +15,7 @@ import { apiRequest } from "../../api/client";
 import { formatCurrency } from "../../utils/currency";
 import "./InventoryDashboard.css";
 
-// Demo data for fallback
+// ── Demo data for fallback ───────────────────────────────────────────────────────
 const demoDashboardData = {
   total_items: 12,
   low_stock_items: 2,
@@ -69,53 +69,61 @@ const InventoryDashboard = () => {
     }
   }, [showOverview]);
 
-  const summaryCards = dashboardData ? [
+  // ── Summary cards configuration ─────────────────────────────────────────────────
+  const summaryCards = useMemo(() => dashboardData ? [
     {
       title: "Total Products",
       value: dashboardData.total_items || 0,
       subtitle: "In inventory",
       change: "",
+      iconClass: "overview-icon--blue",
     },
     {
       title: "Low Stock Items",
       value: dashboardData.low_stock_items || 0,
       subtitle: "Need reorder",
       change: "",
+      iconClass: "overview-icon--amber",
+      alert: true,
     },
     {
       title: "Out of Stock",
       value: dashboardData.out_of_stock_items || 0,
       subtitle: "Items",
       change: "",
+      iconClass: "overview-icon--red",
+      alert: true,
     },
     {
       title: "Stock Value",
       value: formatCurrency(dashboardData.total_stock_value || 0),
       subtitle: "Total value",
       change: "",
+      iconClass: "overview-icon--green",
     },
-  ] : [];
+  ] : [], [dashboardData]);
 
-  const recentActivity = dashboardData ? (dashboardData.recent_transactions || []).map((transaction) => ({
+  // ── Recent activity mapping ─────────────────────────────────────────────────────
+  const recentActivity = useMemo(() => dashboardData ? (dashboardData.recent_transactions || []).map((transaction) => ({
     action: transaction.action || "Transaction",
     product: transaction.item_name || "Item",
     quantity: transaction.quantity || 0,
     time: new Date(transaction.created_at).toLocaleDateString(),
     status: transaction.status || "completed",
-  })) : [];
+  })) : [], [dashboardData]);
 
   return (
-    <div className={`inventory-dashboard ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
+    <div className={`inventory-dashboard theme-page ${theme} ${sidebarCollapsed ? "collapsed" : ""}`}>
       <InventorySidebar
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
       />
 
       <main className="inventory-main">
-        <header className="inventory-navbar top-navbar">
+        <header className="inventory-navbar top-navbar theme-card">
           <div className="navbar-left">
-            <h1>Inventory Management</h1>
-            <p>Monitor stock levels and manage warehouse operations</p>
+            <h1 className="theme-heading">Inventory Management</h1>
+            <p className="theme-muted">Monitor stock levels and manage warehouse operations</p>
           </div>
 
           <div className="search-group">
@@ -152,24 +160,27 @@ const InventoryDashboard = () => {
           <>
             <section className="overview-cards">
               {summaryCards.map((card) => (
-                <div key={card.title} className="overview-card">
-                  <div>
-                    <h3>{card.value}</h3>
-                    <p>{card.title}</p>
+                <div key={card.title} className={`overview-card theme-card${card.alert ? " alert" : ""}`}>
+                  <div className={`overview-icon ${card.iconClass}`}>
+                    <FontAwesomeIcon icon={faBox} />
                   </div>
-                  <span>{card.change}</span>
+                  <div className="overview-content">
+                    <h3>{card.value}</h3>
+                    <p className="overview-title">{card.title}</p>
+                    <p className="overview-subtitle theme-muted">{card.subtitle}</p>
+                  </div>
                 </div>
               ))}
             </section>
 
             <section className="dashboard-grid">
-              <article className="panel overview-panel">
+              <article className="panel overview-panel theme-card">
                 <div className="panel-header">
                   <div>
                     <h2>Recent Activity</h2>
-                    <p>Latest inventory movements and updates</p>
+                    <p className="theme-muted">Latest inventory movements and updates</p>
                   </div>
-                  <span className="badge">Live</span>
+                  <span className="badge live-badge">Live</span>
                 </div>
                 <div className="activity-list">
                   {recentActivity.map((activity, index) => (
@@ -199,19 +210,19 @@ const InventoryDashboard = () => {
                 </div>
               </article>
 
-              <article className="panel quick-stat-panel">
-                <div className="metric-card accent">
+              <article className="panel quick-stat-panel theme-card">
+                <div className="metric-card metric-card--accent theme-card">
                   <h3>{dashboardData?.expiring_soon || 0}</h3>
                   <p>Expiring Soon</p>
-                  <small>Within 30 days</small>
+                  <small className="theme-muted">Within 30 days</small>
                 </div>
 
-                <div className="metric-card">
+                <div className="metric-card theme-card">
                   <h3>{dashboardData?.low_stock_items || 0}</h3>
                   <p>Low Stock Alerts</p>
                 </div>
 
-                <div className="metric-card">
+                <div className="metric-card theme-card">
                   <h3>{dashboardData?.inventory_changes_today || 0}</h3>
                   <p>Changes Today</p>
                 </div>
@@ -219,12 +230,12 @@ const InventoryDashboard = () => {
             </section>
 
             <section className="dashboard-bottom">
-              <div className="panel stock-panel">
+              <div className="panel stock-panel theme-card">
                 <div className="panel-header space-between">
                   <div>
                     <h2>Stock Status</h2>
                   </div>
-                  <NavLink to="/inventory/stock" className="see-all-link">
+                  <NavLink to="/inventory/stock" className="see-all-link theme-button">
                     View all products
                   </NavLink>
                 </div>
@@ -251,31 +262,31 @@ const InventoryDashboard = () => {
                 </div>
               </div>
 
-              <div className="panel performance-panel">
+              <div className="panel performance-panel theme-card">
                 <div className="panel-header space-between">
                   <div>
                     <h2>Inventory Analytics</h2>
                   </div>
-                  <NavLink to="/inventory/reports" className="see-all-link">
+                  <NavLink to="/inventory/reports" className="see-all-link theme-button">
                     View reports
                   </NavLink>
                 </div>
                 
                 <div className="inventory-metrics">
-                  <div className="status-card success">
+                  <div className="status-card status-card--success theme-card">
                     <strong>{dashboardData?.total_items || 0}</strong>
                     <p>Total Products</p>
-                    <small>{dashboardData?.out_of_stock_items || 0} out of stock</small>
+                    <small className="theme-muted">{dashboardData?.out_of_stock_items || 0} out of stock</small>
                   </div>
-                  <div className="status-card warning">
+                  <div className="status-card status-card--warning theme-card">
                     <strong>{dashboardData?.low_stock_items || 0}</strong>
                     <p>Low Stock Items</p>
-                    <small>Need attention</small>
+                    <small className="theme-muted">Need attention</small>
                   </div>
                 </div>
                 
-                <div className="inventory-summary">
-                  <p>Total stock value: {formatCurrency(dashboardData?.total_stock_value || 0)}</p>
+                <div className="inventory-summary theme-card">
+                  <p className="theme-muted">Total stock value: {formatCurrency(dashboardData?.total_stock_value || 0)}</p>
                 </div>
               </div>
             </section>

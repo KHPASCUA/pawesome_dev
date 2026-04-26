@@ -223,11 +223,11 @@ const InventoryReports = () => {
   };
 
   return (
-    <div className="inventory-reports-page">
-      <div className="reports-header">
+    <div className="inventory-reports-page theme-page">
+      <div className="reports-header theme-card">
         <div className="header-content">
-          <h1>Inventory Reports</h1>
-          <p>Stock levels, suppliers, and inventory analytics</p>
+          <h1 className="theme-heading">Inventory Reports</h1>
+          <p className="theme-muted">Stock levels, suppliers, and inventory analytics</p>
         </div>
       </div>
 
@@ -259,70 +259,70 @@ const InventoryReports = () => {
 
       {/* Summary Cards */}
       <div className="reports-summary-grid">
-        <div className="summary-card primary">
+        <div className="summary-card summary-card--primary theme-card">
           <div className="card-icon">
             <FontAwesomeIcon icon={faBox} />
           </div>
           <div className="card-content">
             <div className="card-value">{totalProducts}</div>
-            <div className="card-label">Total Products</div>
+            <div className="card-label theme-muted">Total Products</div>
           </div>
         </div>
 
-        <div className="summary-card secondary">
+        <div className="summary-card summary-card--secondary theme-card">
           <div className="card-icon">
             <FontAwesomeIcon icon={faWarehouse} />
           </div>
           <div className="card-content">
             <div className="card-value">{totalStockQuantity}</div>
-            <div className="card-label">Total Stock Units</div>
+            <div className="card-label theme-muted">Total Stock Units</div>
           </div>
         </div>
 
-        <div className="summary-card tertiary">
+        <div className="summary-card summary-card--tertiary theme-card">
           <div className="card-icon">
             <FontAwesomeIcon icon={faTags} />
           </div>
           <div className="card-content">
             <div className="card-value">₱{totalInventoryValue.toFixed(2)}</div>
-            <div className="card-label">Inventory Value</div>
+            <div className="card-label theme-muted">Inventory Value</div>
           </div>
         </div>
 
-        <div className="summary-card warning">
+        <div className="summary-card summary-card--warning theme-card">
           <div className="card-icon">
             <FontAwesomeIcon icon={faExclamationTriangle} />
           </div>
           <div className="card-content">
             <div className="card-value">{lowStockItems.length}</div>
-            <div className="card-label">Low Stock Items</div>
+            <div className="card-label theme-muted">Low Stock Items</div>
           </div>
         </div>
       </div>
 
       {/* Status Overview */}
       <div className="status-overview-section">
-        <h3>Stock Status Overview</h3>
+        <h3 className="theme-heading">Stock Status Overview</h3>
         <div className="status-grid">
-          <div className="status-card in-stock">
+          <div className="status-card status-card--in-stock theme-card">
             <FontAwesomeIcon icon={faCheckCircle} />
             <div className="status-info">
               <span className="status-count">{statusCounts["In stock"]}</span>
-              <span className="status-label">In Stock</span>
+              <span className="status-label theme-muted">In Stock</span>
             </div>
           </div>
-          <div className="status-card low-stock">
+          <div className="status-card status-card--low-stock theme-card">
             <FontAwesomeIcon icon={faExclamationTriangle} />
             <div className="status-info">
               <span className="status-count">{statusCounts["Low stock"]}</span>
-              <span className="status-label">Low Stock</span>
+              <span className="status-label theme-muted">Low Stock</span>
             </div>
           </div>
-          <div className="status-card out-stock">
+          <div className="status-card status-card--out-stock theme-card">
             <FontAwesomeIcon icon={faBox} />
             <div className="status-info">
               <span className="status-count">{statusCounts["Out of stock"]}</span>
-              <span className="status-label">Out of Stock</span>
+              <span className="status-label theme-muted">Out of Stock</span>
             </div>
           </div>
         </div>
@@ -330,8 +330,8 @@ const InventoryReports = () => {
 
       {/* Category and Brand Summaries */}
       <div className="reports-detail-panel">
-        <section className="reports-panel">
-          <h3>Category Summary</h3>
+        <section className="reports-panel theme-card">
+          <h3 className="theme-heading">Category Summary</h3>
           <div className="reports-list-wrapper">
             <table className="summary-table">
               <thead>
@@ -345,7 +345,7 @@ const InventoryReports = () => {
               <tbody>
                 {Object.entries(categorySummary).map(([category, data]) => (
                   <tr key={category}>
-                    <td>{category}</td>
+                    <td className="theme-text">{category}</td>
                     <td>{data.count}</td>
                     <td>{data.quantity}</td>
                     <td>₱{data.value.toFixed(2)}</td>
@@ -356,8 +356,8 @@ const InventoryReports = () => {
           </div>
         </section>
 
-        <section className="reports-panel">
-          <h3>Brand Summary</h3>
+        <section className="reports-panel theme-card">
+          <h3 className="theme-heading">Brand Summary</h3>
           <div className="reports-list-wrapper">
             <table className="summary-table">
               <thead>
@@ -371,7 +371,7 @@ const InventoryReports = () => {
               <tbody>
                 {Object.entries(brandSummary).map(([brand, data]) => (
                   <tr key={brand}>
-                    <td>{brand}</td>
+                    <td className="theme-text">{brand}</td>
                     <td>{data.count}</td>
                     <td>{data.quantity}</td>
                     <td>₱{data.value.toFixed(2)}</td>
@@ -385,8 +385,8 @@ const InventoryReports = () => {
 
       {/* Low Stock Alerts */}
       {lowStockItems.length > 0 && (
-        <div className="alerts-section">
-          <h3>
+        <div className="alerts-section theme-card">
+          <h3 className="theme-heading">
             <FontAwesomeIcon icon={faExclamationTriangle} />
             Low Stock Alerts
           </h3>
@@ -404,7 +404,7 @@ const InventoryReports = () => {
               <tbody>
                 {lowStockItems.map((item) => (
                   <tr key={item.id} className={item.quantity <= 5 ? "critical" : "warning"}>
-                    <td>{item.name}</td>
+                    <td className="theme-text">{item.name}</td>
                     <td>{item.sku}</td>
                     <td>{item.category}</td>
                     <td className="stock-cell">{item.quantity}</td>
@@ -423,8 +423,8 @@ const InventoryReports = () => {
 
       {/* Inventory Items Table */}
       <div className="inventory-table-section">
-        <h3>Inventory Details</h3>
-        <div className="table-container">
+        <h3 className="theme-heading">Inventory Details</h3>
+        <div className="table-container theme-card">
           <table className="inventory-table">
             <thead>
               <tr>
@@ -445,7 +445,7 @@ const InventoryReports = () => {
               {filteredItems.map((item) => (
                 <tr key={item.id}>
                   <td>{item.id}</td>
-                  <td>{item.name}</td>
+                  <td className="theme-text">{item.name}</td>
                   <td>{item.sku}</td>
                   <td>{item.category}</td>
                   <td>{item.brand}</td>

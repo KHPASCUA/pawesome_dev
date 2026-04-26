@@ -59,7 +59,7 @@
 
 .stock-table th {
  background: #f8fafc;
- color: #0f172a;
+ color: var(--color-heading);
  font-weight: 700;
 }
 

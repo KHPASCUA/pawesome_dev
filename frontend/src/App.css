@@ -19,13 +19,13 @@
 .inventory-main,
 .dashboard-content,
 .inventory-dashboard {
-  background: #f9fafb !important;
+  background: var(--color-surface) !important;
 }
 
 .inventory-main {
   min-height: auto !important;
   padding: 80px 24px 24px !important;
-  background: #f9fafb !important;
+  background: var(--color-surface) !important;
 }
 
 /* Prevent manager-main from affecting inventory pages */
@@ -33,7 +33,7 @@
   all: unset;
   display: block;
   padding: 80px 24px 24px !important;
-  background: #f9fafb !important;
+  background: var(--color-surface) !important;
 }
 
 .App {

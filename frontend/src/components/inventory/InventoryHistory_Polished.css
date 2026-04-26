@@ -17,7 +17,7 @@
 .header-title h2 {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--color-heading);
   margin: 0 0 4px 0;
 }
 
@@ -114,7 +114,7 @@
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--color-heading);
 }
 
 .stat-label {
@@ -282,7 +282,7 @@
 
 .date-cell .date {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--color-heading);
 }
 
 .date-cell .time {
@@ -293,7 +293,7 @@
 /* Product Name */
 .product-name {
   font-weight: 600;
-  color: #1e293b;
+  color: var(--color-heading);
 }
 
 /* Action Badges */
@@ -399,7 +399,7 @@
 .empty-state h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--color-heading);
   margin: 0 0 8px 0;
 }
 

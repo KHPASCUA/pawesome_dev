@@ -289,6 +289,14 @@ const ReceptionistHotelBookings = () => {
     setCareDraft({ log_type: "general_update", notes: "" });
   };
 
+  const verifyVaccinationCard = async (booking) => {
+    await runAction(
+      booking,
+      `/receptionist/boarding-requests/${booking.id}/verify-vaccination`,
+      "Vaccination card verified successfully."
+    );
+  };
+
   const clearFilters = () => {
     setSearchTerm("");
     setFilterStatus("all");
@@ -581,6 +589,7 @@ const ReceptionistHotelBookings = () => {
                   <th>Stay</th>
                   <th>Room</th>
                   <th>Payment</th>
+                  <th>Vaccination</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -589,7 +598,7 @@ const ReceptionistHotelBookings = () => {
               <tbody>
                 {filteredBookings.length === 0 && (
                   <tr>
-                    <td colSpan="8">
+                    <td colSpan="9">
                       <div className="hotel-empty-state">
                         <FontAwesomeIcon icon={faSearch} />
                         <h3>No hotel boarding records found</h3>
@@ -646,6 +655,22 @@ const ReceptionistHotelBookings = () => {
                         </span>
                       </td>
 
+                      <td className="vaccination">
+                        {booking.vaccination_card ? (
+                          booking.vaccination_card_verified_at ? (
+                            <span className="vaccination-badge verified">
+                              <FontAwesomeIcon icon={faCheckCircle} /> Verified
+                            </span>
+                          ) : (
+                            <span className="vaccination-badge unverified">
+                              <FontAwesomeIcon icon={faTimesCircle} /> Pending
+                            </span>
+                          )
+                        ) : (
+                          <span className="vaccination-badge none">None</span>
+                        )}
+                      </td>
+
                       <td className="status">
                         <span className={`status-badge ${getStatusClass(status)}`}>
                           <FontAwesomeIcon icon={getStatusIcon(status)} />
@@ -665,6 +690,20 @@ const ReceptionistHotelBookings = () => {
 
                         {status === "pending" && (
                           <>
+                            {booking.vaccination_card && !booking.vaccination_card_verified_at && (
+                              <button
+                                type="button"
+                                className="action-btn verify-btn"
+                                onClick={() => verifyVaccinationCard(booking)}
+                                disabled={isProcessing(booking)}
+                                title="Verify Vaccination Card"
+                              >
+                                <FontAwesomeIcon
+                                  icon={isProcessing(booking) ? faSpinner : faCheckCircle}
+                                  spin={isProcessing(booking)}
+                                />
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="action-btn approve-btn"
@@ -675,8 +714,8 @@ const ReceptionistHotelBookings = () => {
                                   "Boarding approved."
                                 )
                               }
-                              disabled={isProcessing(booking)}
-                              title="Approve"
+                              disabled={isProcessing(booking) || (booking.vaccination_card && !booking.vaccination_card_verified_at)}
+                              title={booking.vaccination_card && !booking.vaccination_card_verified_at ? "Verify vaccination card first" : "Approve"}
                             >
                               <FontAwesomeIcon
                                 icon={isProcessing(booking) ? faSpinner : faCheckCircle}
@@ -839,6 +878,16 @@ const ReceptionistHotelBookings = () => {
                     >
                       <FontAwesomeIcon icon={faEye} /> View Vaccination Card
                     </button>
+                    {selectedBooking.vaccination_card_verified_at && (
+                      <div style={{ marginTop: "0.5rem", color: "#16a34a", fontSize: "0.875rem" }}>
+                        <FontAwesomeIcon icon={faCheckCircle} /> Verified on {new Date(selectedBooking.vaccination_card_verified_at).toLocaleDateString()}
+                      </div>
+                    )}
+                    {!selectedBooking.vaccination_card_verified_at && (
+                      <div style={{ marginTop: "0.5rem", color: "#dc2626", fontSize: "0.875rem" }}>
+                        <FontAwesomeIcon icon={faTimesCircle} /> Not verified
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

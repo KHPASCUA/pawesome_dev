@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faSearch,
   faCheckCircle,
+  faTimesCircle,
   faCalendarAlt,
   faPaw,
   faUser,
@@ -202,6 +203,21 @@ const ReceptionistBoardingManager = () => {
     }
   };
 
+  const verifyVaccinationCard = async (booking) => {
+    try {
+      setActionId(booking.id);
+      await apiRequest(`/receptionist/boarding-requests/${booking.id}/verify-vaccination`, {
+        method: "POST",
+      });
+      showMessage("success", "Vaccination card verified successfully.");
+      await loadBookings({ silent: true });
+    } catch (err) {
+      showMessage("error", err.message || "Failed to verify vaccination card.");
+    } finally {
+      setActionId(null);
+    }
+  };
+
   const clearFilters = () => {
     setSearchQuery("");
     setStatusFilter("all");
@@ -351,15 +367,28 @@ const ReceptionistBoardingManager = () => {
                 </div>
                 <div className="checkin-card-actions">
                   {activeTab === "queue" && (
-                    <button
-                      type="button"
-                      className="checkin-primary-btn"
-                      onClick={() => handleCheckIn(booking)}
-                      disabled={actionId === booking.id}
-                    >
-                      <FontAwesomeIcon icon={actionId === booking.id ? faSpinner : faDoorOpen} spin={actionId === booking.id} />
-                      {actionId === booking.id ? "Checking In…" : "Check In"}
-                    </button>
+                    <>
+                      {booking.vaccination_card && !booking.vaccination_card_verified_at && (
+                        <button
+                          type="button"
+                          className="checkin-secondary-btn"
+                          onClick={() => verifyVaccinationCard(booking)}
+                          disabled={actionId === booking.id}
+                        >
+                          <FontAwesomeIcon icon={actionId === booking.id ? faSpinner : faCheckCircle} spin={actionId === booking.id} />
+                          {actionId === booking.id ? "Verifying…" : "Verify Vaccine"}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="checkin-primary-btn"
+                        onClick={() => handleCheckIn(booking)}
+                        disabled={actionId === booking.id || (booking.vaccination_card && !booking.vaccination_card_verified_at)}
+                      >
+                        <FontAwesomeIcon icon={actionId === booking.id ? faSpinner : faDoorOpen} spin={actionId === booking.id} />
+                        {actionId === booking.id ? "Checking In…" : booking.vaccination_card && !booking.vaccination_card_verified_at ? "Verify First" : "Check In"}
+                      </button>
+                    </>
                   )}
                   {activeTab === "inhouse" && (
                     <button
@@ -431,6 +460,16 @@ const ReceptionistBoardingManager = () => {
                         <FontAwesomeIcon icon={faEye} />
                         View Vaccination Card
                       </button>
+                      {booking.vaccination_card_verified_at && (
+                        <span style={{ marginLeft: "1rem", color: "#16a34a", fontSize: "0.875rem" }}>
+                          <FontAwesomeIcon icon={faCheckCircle} /> Verified
+                        </span>
+                      )}
+                      {!booking.vaccination_card_verified_at && (
+                        <span style={{ marginLeft: "1rem", color: "#dc2626", fontSize: "0.875rem" }}>
+                          <FontAwesomeIcon icon={faTimesCircle} /> Not Verified
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

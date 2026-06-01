@@ -51,6 +51,9 @@ const CustomerBookingForm = () => {
   const [availableRooms, setAvailableRooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(false);
 
+  const [vaccinationCard, setVaccinationCard] = useState(null);
+  const [vaccinationPreview, setVaccinationPreview] = useState(null);
+
   const calculateAge = (birthdate) => {
     if (!birthdate) return null;
     const today = new Date();
@@ -248,43 +251,89 @@ const CustomerBookingForm = () => {
       return;
     }
 
+    // Vaccination card required for hotel bookings
+    if (formData.service_type === "hotel" && !vaccinationCard) {
+      showAlert("Vaccination card is required for boarding requests.");
+      return;
+    }
+
     try {
       setLoading(true);
 
       const selectedPet = pets.find((pet) => String(pet.id) === String(selectedPetId));
 
-      const payload = {
-        customer_name: customerName,
-        customer_email: user?.email || formData.customer_email,
-
-        pet_id: selectedPet?.id,
-        pet_name: selectedPet?.name,
-
-        request_type: formData.service_type || formData.request_type,
-
-        requested_date: formData.preferred_date || formData.requested_date,
-        requested_time: formData.preferred_time || formData.requested_time,
-
-        notes: formData.notes || "",
-        special_request: formData.notes || "",
-      };
-
-      // Add room selection data for hotel bookings
-      if (formData.service_type === "hotel" && formData.boarding_room_id) {
-        const selectedRoom = availableRooms.find(room => String(room.id) === String(formData.boarding_room_id));
-        if (selectedRoom) {
-          payload.boarding_room_id = selectedRoom.id;
-          payload.room_name = selectedRoom.room_name;
-          payload.daily_rate = selectedRoom.daily_rate;
+      // Use FormData for hotel bookings (to support file upload)
+      if (formData.service_type === "hotel") {
+        const formDataPayload = new FormData();
+        formDataPayload.append("customer_name", customerName);
+        formDataPayload.append("customer_email", user?.email || formData.customer_email);
+        formDataPayload.append("pet_id", selectedPet?.id || "");
+        formDataPayload.append("pet_name", selectedPet?.name || "");
+        formDataPayload.append("check_in_date", formData.check_in_date || "");
+        formDataPayload.append("check_out_date", formData.check_out_date || "");
+        formDataPayload.append("notes", formData.notes || "");
+        
+        if (formData.boarding_room_id) {
+          const selectedRoom = availableRooms.find(room => String(room.id) === String(formData.boarding_room_id));
+          if (selectedRoom) {
+            formDataPayload.append("room_id", selectedRoom.id);
+          }
         }
-        payload.check_in_date = formData.check_in_date;
-        payload.check_out_date = formData.check_out_date;
-      }
+        
+        if (vaccinationCard) {
+          formDataPayload.append("vaccination_card", vaccinationCard);
+        }
 
-      const data = await apiRequest("/customer/requests", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+        const data = await apiRequest("/customer/boardings", {
+          method: "POST",
+          body: formDataPayload,
+        });
+
+        if (data.success) {
+          showSuccess("Boarding request submitted successfully. Please wait for receptionist approval.");
+
+          setFormData({
+            customer_name: customerName,
+            customer_email: user?.email || "",
+            pet_id: "",
+            pet_name: "",
+            service_type: "grooming",
+            service_name: "Grooming",
+            preferred_date: "",
+            preferred_time: "",
+            notes: "",
+            check_in_date: "",
+            check_out_date: "",
+            boarding_room_id: "",
+          });
+          setSelectedPetId("");
+          setVaccinationCard(null);
+          setVaccinationPreview(null);
+        } else {
+          showAlert(data.message || "Failed to submit request.");
+        }
+      } else {
+        // Use JSON for grooming and veterinary bookings
+        const payload = {
+          customer_name: customerName,
+          customer_email: user?.email || formData.customer_email,
+
+          pet_id: selectedPet?.id,
+          pet_name: selectedPet?.name,
+
+          request_type: formData.service_type || formData.request_type,
+
+          requested_date: formData.preferred_date || formData.requested_date,
+          requested_time: formData.preferred_time || formData.requested_time,
+
+          notes: formData.notes || "",
+          special_request: formData.notes || "",
+        };
+
+        const data = await apiRequest("/customer/requests", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
 
       if (data.success) {
         showSuccess("Booking request submitted successfully. Please wait for receptionist approval.");
@@ -491,6 +540,43 @@ const CustomerBookingForm = () => {
                         </option>
                       ))}
                     </select>
+                  )}
+                </label>
+
+                <label className="full-width">
+                  Vaccination Card *
+                  <small style={{ display: "block", color: "#64748b", marginBottom: "0.5rem" }}>
+                    Vaccination card is required for boarding requests.
+                  </small>
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setVaccinationCard(file);
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => setVaccinationPreview(reader.result);
+                        reader.readAsDataURL(file);
+                      } else {
+                        setVaccinationPreview(null);
+                      }
+                    }}
+                    required
+                  />
+                  {vaccinationCard && (
+                    <small style={{ display: "block", marginTop: "0.5rem", color: "#16a34a" }}>
+                      Selected: {vaccinationCard.name}
+                    </small>
+                  )}
+                  {vaccinationPreview && (
+                    <div style={{ marginTop: "0.5rem" }}>
+                      <img 
+                        src={vaccinationPreview} 
+                        alt="Vaccination card preview" 
+                        style={{ maxWidth: "200px", maxHeight: "200px", borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                      />
+                    </div>
                   )}
                 </label>
               </>

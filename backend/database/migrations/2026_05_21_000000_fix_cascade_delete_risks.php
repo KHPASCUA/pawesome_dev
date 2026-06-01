@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -15,34 +14,84 @@ return new class extends Migration
     public function up(): void
     {
         // pets.customer_id: cascade -> set null (preserve pet records)
-        $this->replaceForeign('pets', 'customer_id', 'users', 'set null');
+        if (Schema::hasTable('pets') && Schema::hasColumn('pets', 'customer_id')) {
+            Schema::table('pets', function (Blueprint $table) {
+                $table->dropForeign(['customer_id']);
+                $table->foreign('customer_id')->references('id')->on('users')->onDelete('set null');
+            });
+        }
 
         // boardings.pet_id: cascade -> set null (preserve boarding history)
-        $this->replaceForeign('boardings', 'pet_id', 'pets', 'set null');
+        if (Schema::hasTable('boardings') && Schema::hasColumn('boardings', 'pet_id')) {
+            Schema::table('boardings', function (Blueprint $table) {
+                $table->dropForeign(['pet_id']);
+                $table->foreign('pet_id')->references('id')->on('pets')->onDelete('set null');
+            });
+        }
 
         // boardings.customer_id: cascade -> set null (preserve boarding history)
-        $this->replaceForeign('boardings', 'customer_id', 'users', 'set null');
+        if (Schema::hasTable('boardings') && Schema::hasColumn('boardings', 'customer_id')) {
+            Schema::table('boardings', function (Blueprint $table) {
+                $table->dropForeign(['customer_id']);
+                $table->foreign('customer_id')->references('id')->on('users')->onDelete('set null');
+            });
+        }
 
         // appointments.customer_id: cascade -> set null
-        $this->replaceForeign('appointments', 'customer_id', 'users', 'set null');
+        if (Schema::hasTable('appointments') && Schema::hasColumn('appointments', 'customer_id')) {
+            Schema::table('appointments', function (Blueprint $table) {
+                $table->dropForeign(['customer_id']);
+                $table->foreign('customer_id')->references('id')->on('users')->onDelete('set null');
+            });
+        }
 
         // appointments.pet_id: cascade -> set null
-        $this->replaceForeign('appointments', 'pet_id', 'pets', 'set null');
+        if (Schema::hasTable('appointments') && Schema::hasColumn('appointments', 'pet_id')) {
+            Schema::table('appointments', function (Blueprint $table) {
+                $table->dropForeign(['pet_id']);
+                $table->foreign('pet_id')->references('id')->on('pets')->onDelete('set null');
+            });
+        }
 
         // appointments.service_id: cascade -> restrict (prevent deleting referenced services)
-        $this->replaceForeign('appointments', 'service_id', 'services', 'restrict');
+        if (Schema::hasTable('appointments') && Schema::hasColumn('appointments', 'service_id')) {
+            Schema::table('appointments', function (Blueprint $table) {
+                $table->dropForeign(['service_id']);
+                $table->foreign('service_id')->references('id')->on('services')->onDelete('restrict');
+            });
+        }
 
         // medical_records.pet_id: cascade -> set null (preserve medical audit trail)
-        $this->replaceForeign('medical_records', 'pet_id', 'pets', 'set null');
+        if (Schema::hasTable('medical_records') && Schema::hasColumn('medical_records', 'pet_id')) {
+            Schema::table('medical_records', function (Blueprint $table) {
+                $table->dropForeign(['pet_id']);
+                $table->foreign('pet_id')->references('id')->on('pets')->onDelete('set null');
+            });
+        }
 
         // vaccinations.pet_id: cascade -> set null (preserve vaccination history)
-        $this->replaceForeign('vaccinations', 'pet_id', 'pets', 'set null');
+        if (Schema::hasTable('vaccinations') && Schema::hasColumn('vaccinations', 'pet_id')) {
+            Schema::table('vaccinations', function (Blueprint $table) {
+                $table->dropForeign(['pet_id']);
+                $table->foreign('pet_id')->references('id')->on('pets')->onDelete('set null');
+            });
+        }
 
         // customer_orders.customer_id: cascade -> restrict (block deletion of customers with orders)
-        $this->replaceForeign('customer_orders', 'customer_id', 'users', 'restrict');
+        if (Schema::hasTable('customer_orders') && Schema::hasColumn('customer_orders', 'customer_id')) {
+            Schema::table('customer_orders', function (Blueprint $table) {
+                $table->dropForeign(['customer_id']);
+                $table->foreign('customer_id')->references('id')->on('users')->onDelete('restrict');
+            });
+        }
 
         // customers.user_id: cascade -> restrict (block deleting users with customer profiles)
-        $this->replaceForeign('customers', 'user_id', 'users', 'restrict');
+        if (Schema::hasTable('customers') && Schema::hasColumn('customers', 'user_id')) {
+            Schema::table('customers', function (Blueprint $table) {
+                $table->dropForeign(['user_id']);
+                $table->foreign('user_id')->references('id')->on('users')->onDelete('restrict');
+            });
+        }
     }
 
     /**
@@ -129,40 +178,5 @@ return new class extends Migration
                 $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
             });
         }
-    }
-
-    private function replaceForeign(string $tableName, string $columnName, string $referencedTable, string $onDelete): void
-    {
-        if (DB::connection()->getDriverName() === 'sqlite') {
-            return;
-        }
-
-        if (!Schema::hasTable($tableName) || !Schema::hasColumn($tableName, $columnName)) {
-            return;
-        }
-
-        $foreignKeys = DB::select(
-            'SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL',
-            [$tableName, $columnName]
-        );
-
-        foreach ($foreignKeys as $foreignKey) {
-            DB::statement("ALTER TABLE `{$tableName}` DROP FOREIGN KEY `{$foreignKey->CONSTRAINT_NAME}`");
-        }
-
-        if ($onDelete === 'set null') {
-            $column = DB::selectOne(
-                'SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
-                [$tableName, $columnName]
-            );
-
-            if ($column) {
-                DB::statement("ALTER TABLE `{$tableName}` MODIFY `{$columnName}` {$column->COLUMN_TYPE} NULL");
-            }
-        }
-
-        Schema::table($tableName, function (Blueprint $table) use ($columnName, $referencedTable, $onDelete) {
-            $table->foreign($columnName)->references('id')->on($referencedTable)->onDelete($onDelete);
-        });
     }
 };

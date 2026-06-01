@@ -6,7 +6,7 @@ use App\Models\Appointment;
 use App\Models\Boarding;
 use App\Models\ChatbotLog;
 use App\Models\Customer;
-use App\Models\HotelRoom;
+use App\Models\BoardingRoom;
 use App\Models\InventoryItem;
 use App\Models\InventoryLog;
 use App\Models\Payment;
@@ -110,9 +110,29 @@ class FullSystemIntegrationTest extends TestCase
         Service::factory()->create(['name' => 'Vaccination', 'category' => 'Vaccination', 'price' => 800, 'duration' => 30]);
         Service::factory()->create(['name' => 'Consultation', 'category' => 'Consultation', 'price' => 300, 'duration' => 45]);
         
-        // Hotel Rooms
-        HotelRoom::factory()->create(['room_number' => '101', 'type' => 'standard', 'size' => 'small', 'daily_rate' => 500]);
-        HotelRoom::factory()->create(['room_number' => '102', 'type' => 'deluxe', 'size' => 'medium', 'daily_rate' => 800]);
+        // Boarding Rooms
+        \App\Models\BoardingRoom::create([
+            'room_code' => '101',
+            'room_name' => 'Standard Room',
+            'room_type' => 'standard',
+            'allowed_species' => ['dog', 'cat'],
+            'max_capacity' => 2,
+            'total_rooms' => 5,
+            'daily_rate' => 500,
+            'is_active' => true,
+            'customer_selectable' => true,
+        ]);
+        \App\Models\BoardingRoom::create([
+            'room_code' => '102',
+            'room_name' => 'Deluxe Room',
+            'room_type' => 'deluxe',
+            'allowed_species' => ['dog', 'cat'],
+            'max_capacity' => 3,
+            'total_rooms' => 3,
+            'daily_rate' => 800,
+            'is_active' => true,
+            'customer_selectable' => true,
+        ]);
         
         // Pets
         Pet::factory()->create([
@@ -197,7 +217,7 @@ class FullSystemIntegrationTest extends TestCase
         // Chatbot log should be created
         $this->assertDatabaseHas('chatbot_logs', [
             'user_id' => $this->customerUser->id,
-            'intent' => 'inventory',
+            'intent' => 'inventory_stock_check',
         ]);
         
         // ============================================
@@ -224,14 +244,14 @@ class FullSystemIntegrationTest extends TestCase
         // STEP 4: Receptionist - Create Boarding
         // ============================================
         
-        $room = HotelRoom::where('room_number', '101')->first();
+        $room = \App\Models\BoardingRoom::where('room_code', '101')->first();
         
         $boarding = $this->postJson('/api/boardings', [
             'pet_id' => Pet::where('customer_id', $this->customer->id)->first()->id,
             'customer_id' => $this->customer->id,
-            'hotel_room_id' => $room->id,
-            'check_in' => now()->addDay()->format('Y-m-d'),
-            'check_out' => now()->addDays(3)->format('Y-m-d'),
+            'room_id' => $room->id,
+            'check_in_date' => now()->addDay()->format('Y-m-d'),
+            'check_out_date' => now()->addDays(3)->format('Y-m-d'),
             'special_requests' => 'Needs medication twice daily',
         ], $this->withAuth($this->receptionist, $this->receptionistToken));
         
@@ -285,6 +305,8 @@ class FullSystemIntegrationTest extends TestCase
             'category' => 'Toys',
             'price' => 350,
             'stock' => 30,
+            'status' => 'active',
+            'is_sellable' => true,
         ]);
         
         $sale2 = $this->postJson('/api/cashier/pos/transaction', [
@@ -308,7 +330,7 @@ class FullSystemIntegrationTest extends TestCase
             ],
             'payment_method' => 'gcash',
         ], $this->withAuth($this->cashier));
-        
+
         $sale2->assertStatus(200);
         
         // ============================================
@@ -417,6 +439,8 @@ class FullSystemIntegrationTest extends TestCase
             'name' => 'Test Item',
             'stock' => 100,
             'price' => 500,
+            'status' => 'active',
+            'is_sellable' => true,
         ]);
         
         // Simulate multiple sales reducing stock
@@ -551,6 +575,8 @@ class FullSystemIntegrationTest extends TestCase
             'name' => 'Tax Test Item',
             'price' => 1000,
             'stock' => 10,
+            'status' => 'active',
+            'is_sellable' => true,
         ]);
         
         $sale = $this->postJson('/api/cashier/pos/transaction', [

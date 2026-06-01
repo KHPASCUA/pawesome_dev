@@ -24,10 +24,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class BoardingController extends Controller
 {
@@ -230,18 +228,34 @@ class BoardingController extends Controller
             $request->merge(['customer_id' => $customerId]);
         }
 
-        $useHotelRoom = $request->has('hotel_room_id') && $request->hotel_room_id;
+        $legacyAliases = [];
+        if (!$request->filled('room_id') && $request->filled('hotel_room_id')) {
+            $legacyAliases['room_id'] = $request->hotel_room_id;
+        }
+        if (!$request->filled('check_in_date') && $request->filled('check_in')) {
+            $legacyAliases['check_in_date'] = $request->check_in;
+        }
+        if (!$request->filled('check_out_date') && $request->filled('check_out')) {
+            $legacyAliases['check_out_date'] = $request->check_out;
+        }
+        if ($legacyAliases) {
+            $request->merge($legacyAliases);
+        }
 
         $validator = Validator::make($request->all(), [
             'pet_id' => 'required|exists:pets,id',
             'customer_id' => 'required|exists:customers,id',
-            'room_id' => 'nullable|exists:boarding_rooms,id',
-            'hotel_room_id' => 'nullable|exists:hotel_rooms,id',
+            'room_id' => 'required|exists:boarding_rooms,id',
             'check_in_date' => 'required|date|after_or_equal:today',
-            'number_of_days' => 'required|integer|min:1',
+            'check_out_date' => 'required|date|after:check_in_date',
             'check_in_time' => 'nullable|date_format:H:i',
             'check_out_time' => 'nullable|date_format:H:i',
-            'vaccination_card' => 'required|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'special_requests' => 'nullable|string',
+            'special_instructions' => 'nullable|string',
+            'feeding_instructions' => 'nullable|string',
+            'medication_notes' => 'nullable|string',
+            'emergency_contact' => 'nullable|string|max:255',
+            'emergency_phone' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
             'add_ons' => 'nullable|array',
             'add_ons.*.id' => 'required|exists:add_ons,id',
@@ -250,10 +264,6 @@ class BoardingController extends Controller
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        if (!$request->room_id && !$request->hotel_room_id) {
-            return response()->json(['errors' => ['room_id' => ['A room must be selected.']]], 422);
         }
 
         if ($request->pet_id && $request->user()?->role === 'customer') {
@@ -267,39 +277,26 @@ class BoardingController extends Controller
             return response()->json(['error' => 'Pet not found'], 404);
         }
 
-        // Compute check-out date from number_of_days
-        $checkIn = Carbon::parse($request->check_in_date);
-        $checkOut = $checkIn->copy()->addDays((int) $request->number_of_days);
-        $checkOutDate = $checkOut->toDateString();
-
         // Calculate total amount using room-based pricing
-        if ($useHotelRoom) {
-            $hotelRoom = \App\Models\HotelRoom::find($request->hotel_room_id);
-            $dailyRate = (float) ($hotelRoom->daily_rate ?? 0);
-            $numberOfDays = max(1, (int) $request->number_of_days);
-            $totalAmount = $dailyRate * $numberOfDays;
-            $roomName = $hotelRoom->name ?? $hotelRoom->room_number;
-            $roomType = $hotelRoom->type;
-        } else {
-            $pricingResult = $this->boardingRoomService->calculateTotalAmount(
-                $request->room_id,
-                $request->check_in_date,
-                $checkOutDate
-            );
+        $pricingResult = $this->boardingRoomService->calculateTotalAmount(
+            $request->room_id,
+            $request->check_in_date,
+            $request->check_out_date
+        );
 
-            if (!$pricingResult['success']) {
-                return response()->json([
-                    'success' => false,
-                    'message' => $pricingResult['message']
-                ], 422);
-            }
-
-            $totalAmount = $pricingResult['total_amount'];
-            $dailyRate = $pricingResult['daily_rate'];
-            $numberOfDays = $pricingResult['number_of_days'];
-            $roomName = $pricingResult['room_name'];
-            $roomType = $pricingResult['room_type'];
+        if (!$pricingResult['success']) {
+            return response()->json([
+                'success' => false,
+                'message' => $pricingResult['message']
+            ], 422);
         }
+
+        // Use room-based pricing
+        $totalAmount = $pricingResult['total_amount'];
+        $dailyRate = $pricingResult['daily_rate'];
+        $numberOfDays = $pricingResult['number_of_days'];
+        $roomName = $pricingResult['room_name'];
+        $roomType = $pricingResult['room_type'];
 
         // Process add-ons
         $addOnSubtotal = 0;
@@ -352,12 +349,6 @@ class BoardingController extends Controller
             // Keep status as 'pending' but note approval requirement in notes
         }
         
-        // Handle vaccination card upload
-        $vaccinationCardPath = null;
-        if ($request->hasFile('vaccination_card')) {
-            $vaccinationCardPath = $request->file('vaccination_card')->store('vaccination_cards', 'private');
-        }
-
         $boardingData = [
             'pet_id' => $request->pet_id,
             'pet_name' => $pet ? $pet->name : null,
@@ -373,22 +364,30 @@ class BoardingController extends Controller
             'stay_type' => 'hotel_boarding',
             'check_in' => $request->check_in_date,
             'check_in_time' => $request->check_in_time,
-            'check_out' => $checkOutDate,
+            'check_out' => $request->check_out_date,
             'check_out_time' => $request->check_out_time,
             'boarding_type' => $roomType,
             'status' => $status,
             'total_amount' => $finalTotal,
             'payment_status' => $initialPaymentStatus,
-            'vaccination_card' => $vaccinationCardPath,
+            'special_requests' => $request->special_requests,
+            'feeding_instructions' => $request->feeding_instructions,
+            'medication_notes' => $request->medication_notes,
+            'emergency_contact' => $request->emergency_contact,
+            'emergency_phone' => $request->emergency_phone,
             'notes' => $request->notes,
         ];
 
-        if (Schema::hasColumn('boardings', 'room_id') && $request->room_id) {
+        if (Schema::hasColumn('boardings', 'room_id')) {
             $boardingData['room_id'] = $request->room_id;
         }
 
-        if (Schema::hasColumn('boardings', 'hotel_room_id') && $request->hotel_room_id) {
-            $boardingData['hotel_room_id'] = $request->hotel_room_id;
+        if (
+            Schema::hasColumn('boardings', 'hotel_room_id') &&
+            Schema::hasTable('hotel_rooms') &&
+            DB::table('hotel_rooms')->where('id', $request->room_id)->exists()
+        ) {
+            $boardingData['hotel_room_id'] = $request->room_id;
         }
         
         // Note: Special care fields and compatibility metadata stored in notes field
@@ -430,24 +429,22 @@ class BoardingController extends Controller
         );
         
         // Create boarding and room reservation in a transaction
-        $result = DB::transaction(function () use ($boardingData, $request, $selectedAddOns, $checkOutDate, $useHotelRoom) {
+        $result = DB::transaction(function () use ($boardingData, $request, $selectedAddOns) {
             $boarding = Boarding::create($boardingData);
 
-            // Create room reservation (only for boarding rooms, not legacy hotel rooms)
-            if (!$useHotelRoom) {
-                $roomReservationResult = $this->boardingRoomService->createRoomReservation(
-                    $request->room_id,
-                    'pet_hotel',
-                    $boarding->id,
-                    $request->pet_id,
-                    $request->check_in_date,
-                    $checkOutDate,
-                    $request->customer_id
-                );
+            // Create room reservation
+            $roomReservationResult = $this->boardingRoomService->createRoomReservation(
+                $request->room_id,
+                'pet_hotel',
+                $boarding->id,
+                $request->pet_id,
+                $request->check_in_date,
+                $request->check_out_date,
+                $request->customer_id
+            );
 
-                if (!$roomReservationResult['success']) {
-                    throw new \Exception($roomReservationResult['message']);
-                }
+            if (!$roomReservationResult['success']) {
+                throw new \Exception($roomReservationResult['message']);
             }
 
             // Create booking add-ons
@@ -470,11 +467,6 @@ class BoardingController extends Controller
         });
 
         $result->load(['pet', 'customer', 'roomReservation.room']);
-
-        // Append vaccination_card URL for client convenience
-        if ($result->vaccination_card) {
-            $result->vaccination_card_url = url('/api/files/vaccination-cards/' . $result->id . '/view');
-        }
 
         // Send notifications
         NotificationService::notifyBoardingCreated($result);
@@ -523,6 +515,9 @@ class BoardingController extends Controller
             'check_out' => 'nullable|date|after:check_in',
             'status' => 'nullable|in:pending,approved,scheduled,confirmed,checked_in,in_care,ready_for_pickup,checked_out,completed,cancelled,rejected',
             'payment_status' => 'nullable|in:unpaid,pending,partial,paid,rejected,refunded',
+            'special_requests' => 'nullable|string',
+            'emergency_contact' => 'nullable|string|max:255',
+            'emergency_phone' => 'nullable|string|max:255',
             'notes' => 'nullable|string',
         ]);
 
@@ -622,10 +617,6 @@ class BoardingController extends Controller
             return response()->json(['error' => 'Only pending boarding requests can be confirmed'], 422);
         }
 
-        if ($boarding->vaccination_card && !$boarding->vaccination_card_verified_at) {
-            return response()->json(['error' => 'Vaccination card must be verified before approval.'], 422);
-        }
-
         $oldStatus = $boarding->status;
         
         // Initialize inventory service
@@ -714,31 +705,6 @@ class BoardingController extends Controller
     public function approve(Request $request, $id): JsonResponse
     {
         return $this->confirm($request, $id);
-    }
-
-    /**
-     * Mark vaccination card as verified by receptionist
-     */
-    public function verifyVaccinationCard(Request $request, $id): JsonResponse
-    {
-        $boarding = Boarding::findOrFail($id);
-
-        if (!$boarding->vaccination_card) {
-            return response()->json(['error' => 'No vaccination card on file for this booking.'], 422);
-        }
-
-        if (!in_array($boarding->status, ['pending', 'approved', 'scheduled', 'confirmed'], true)) {
-            return response()->json(['error' => 'Cannot verify vaccination card for this reservation status.'], 422);
-        }
-
-        $boarding->update([
-            'vaccination_card_verified_at' => now(),
-        ]);
-
-        return response()->json([
-            'message' => 'Vaccination card verified successfully.',
-            'boarding' => $boarding->fresh(['pet', 'customer', 'hotelRoom']),
-        ]);
     }
 
     public function pending(): JsonResponse

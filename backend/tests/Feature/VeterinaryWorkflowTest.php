@@ -104,6 +104,8 @@ class VeterinaryWorkflowTest extends TestCase
             'status' => MedicalRecord::STATUS_FINALIZED,
         ]);
 
+        Appointment::whereKey($appointmentId)->update(['payment_status' => 'paid']);
+
         $this->withHeaders($this->authHeader($vet))
             ->postJson("/api/veterinary/appointments/{$appointmentId}/complete")
             ->assertOk()

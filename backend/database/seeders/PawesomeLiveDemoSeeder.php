@@ -72,7 +72,7 @@ class PawesomeLiveDemoSeeder extends Seeder
                     'first_name' => $data['name'],
                     'last_name' => '',
                     'email' => $username . '@example.com',
-                    'password' => Hash::make('Password123!'),
+                    'password' => Hash::make('password'),
                     'role' => $data['role'],
                     'department' => $data['department'],
                     'position' => $data['position'],
@@ -106,7 +106,7 @@ class PawesomeLiveDemoSeeder extends Seeder
                     'first_name' => Str::before($profile['name'], ' '),
                     'last_name' => Str::after($profile['name'], ' '),
                     'email' => $profile['email'],
-                    'password' => Hash::make('Password123!'),
+                    'password' => Hash::make('password'),
                     'role' => 'customer',
                     'is_active' => true,
                 ]

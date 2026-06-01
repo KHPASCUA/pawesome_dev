@@ -134,7 +134,7 @@ class InventoryTest extends TestCase
             'name' => 'To Be Deleted',
             'category' => 'Food',
             'price' => 200,
-            'stock' => 5,
+            'stock' => 0,
             'reorder_level' => 3,
             'status' => 'active',
         ]);
@@ -144,8 +144,9 @@ class InventoryTest extends TestCase
 
         $response->assertStatus(200);
 
-        $this->assertDatabaseMissing('inventory_items', [
+        $this->assertDatabaseHas('inventory_items', [
             'id' => $item->id,
+            'status' => 'archived',
         ]);
     }
 

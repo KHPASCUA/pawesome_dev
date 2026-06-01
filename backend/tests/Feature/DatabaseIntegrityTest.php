@@ -422,22 +422,24 @@ class DatabaseIntegrityTest extends TestCase
 
     public function test_receptionist_hotel_booking_database_flow(): void
     {
-        $room = HotelRoom::factory()->create([
-            'room_number' => '101',
-            'name' => 'Standard Room',
-            'type' => 'standard',
-            'size' => 'medium',
-            'capacity' => 2,
+        $room = \App\Models\BoardingRoom::create([
+            'room_code' => '101',
+            'room_name' => 'Standard Room',
+            'room_type' => 'standard',
+            'allowed_species' => ['dog', 'cat'],
+            'max_capacity' => 2,
+            'total_rooms' => 5,
             'daily_rate' => 500,
-            'status' => 'available',
+            'is_active' => true,
+            'customer_selectable' => true,
         ]);
         
         $response = $this->postJson('/api/boardings', [
             'customer_id' => $this->customerRecord->id,
             'pet_id' => $this->pet->id,
-            'hotel_room_id' => $room->id,
-            'check_in' => now()->addDay()->format('Y-m-d'),
-            'check_out' => now()->addDays(3)->format('Y-m-d'),
+            'room_id' => $room->id,
+            'check_in_date' => now()->addDay()->format('Y-m-d'),
+            'check_out_date' => now()->addDays(3)->format('Y-m-d'),
             'special_requests' => 'Needs quiet room',
         ], $this->withAuth($this->receptionist, $this->receptionistToken));
 
@@ -447,12 +449,11 @@ class DatabaseIntegrityTest extends TestCase
         $this->assertDatabaseHas('boardings', [
             'customer_id' => $this->customerRecord->id,
             'pet_id' => $this->pet->id,
-            'hotel_room_id' => $room->id,
             'status' => 'pending',
         ]);
 
-        // Room stays available until check-in (verify it was NOT changed)
-        $this->assertEquals('available', $room->fresh()->status);
+        // Room stays active until check-in (verify it was NOT changed)
+        $this->assertTrue($room->fresh()->is_active);
     }
 
     // ============================================

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::table('inventory_items', function (Blueprint $table) {
             // Archive/discontinue fields
-            $table->enum('status', ['active', 'inactive', 'archived'])->default('active')->change();
+            $table->enum('status', ['active', 'inactive', 'discontinued', 'archived'])->default('active')->change();
             $table->timestamp('archived_at')->nullable()->after('status');
             $table->foreignId('archived_by')->nullable()->after('archived_at')->constrained('users')->onDelete('set null');
             $table->text('archive_reason')->nullable()->after('archived_by');
